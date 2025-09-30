@@ -3,13 +3,14 @@ import { ValidationError } from "../middleware/error-handler";
 import { ExpenseExtractorAgent } from "../agents/expense-extractor-agent";
 import { OpenAIProvider } from "../providers/openai-provider";
 import { generateSessionId } from "../utils/session";
+import { expenseService, ExpenseRecord } from "./expense-service";
+import { normalizeExpenseCategory } from "../constants/expense-categories";
 
 export interface Expense {
   description: string;
   amount: number;
   category: string;
   currency: string;
-  confidence: number;
 }
 
 export interface ExpenseSummary {
@@ -22,7 +23,7 @@ export interface AgentResponse {
   success: boolean;
   message: string;
   data: {
-    expenses: Expense[];
+    expenses: ExpenseRecord[];
     summary: ExpenseSummary;
     extractedAt: string;
     confidence: number;
@@ -69,11 +70,33 @@ export class AgentService {
         throw new Error(result.error || "Failed to extract expenses");
       }
 
+      // Persist extracted expenses
+      const persistedExpenses = [];
+      for (const expense of result.data.expenses) {
+        try {
+          // Normalizar categoria antes de persistir
+          const normalizedCategory = normalizeExpenseCategory(expense.category);
+
+          const persistedExpense = await expenseService.createExpense({
+            description: expense.description,
+            amount: expense.amount,
+            category: normalizedCategory,
+            currency: expense.currency,
+          });
+          persistedExpenses.push(persistedExpense);
+        } catch (error) {
+          logger.warn("Failed to persist expense", {
+            expense,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+
       const response: AgentResponse = {
         success: true,
-        message: "Expenses extracted successfully",
+        message: "Expenses extracted and persisted successfully",
         data: {
-          expenses: result.data.expenses,
+          expenses: persistedExpenses,
           summary: result.data.summary,
           extractedAt: result.data.extractedAt.toISOString(),
           confidence: result.data.confidence,

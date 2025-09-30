@@ -8,6 +8,7 @@ import {
   ExpenseExtractorResult,
 } from "./types";
 import { generateSessionId } from "../utils/session";
+import { getValidExpenseCategories } from "../constants/expense-categories";
 
 export class ExpenseExtractorAgent implements Agent {
   public id = "expense-extractor-agent";
@@ -119,7 +120,7 @@ IMPORTANTE: Retorne APENAS um JSON válido, sem texto adicional, seguindo EXATAM
   ]
 }
 
-Categorias disponíveis: alimentação, transporte, saúde, educação, lazer, moradia, vestuário, serviços, combustível, farmácia, supermercado, restaurante, outros
+Categorias disponíveis: ${getValidExpenseCategories().join(", ")}
 
 Exemplos de categorização:
 - "almoço", "jantar", "comida", "restaurante" → alimentação

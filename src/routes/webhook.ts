@@ -23,8 +23,8 @@ interface WebhookBody {
   data: WebhookMessage;
 }
 
-export const messageRoutes = new Elysia({ prefix: "/message" }).post(
-  "/",
+export const webhookRoutes = new Elysia({ prefix: "/webhook" }).post(
+  "/evolution-api",
   async ({ set, body }) => {
     try {
       logger.info("Received webhook message", { body });
@@ -55,7 +55,7 @@ export const messageRoutes = new Elysia({ prefix: "/message" }).post(
         remoteJid: webhookData.data.key?.remoteJid,
       });
 
-      if (webhookData.data.key?.fromMe) {
+      if (!webhookData.data.key?.fromMe) {
         logger.info("Skipping message from bot itself");
         return {
           status: "success",
@@ -127,10 +127,10 @@ export const messageRoutes = new Elysia({ prefix: "/message" }).post(
   },
   {
     detail: {
-      tags: ["Message"],
-      summary: "Process webhook message",
-      description:
-        "Receives webhook messages from Evolution API and processes them using the expense extractor agent",
+        tags: ["Webhook"],
+        summary: "Process Evolution API webhook",
+        description:
+          "Receives webhook messages from Evolution API and processes them using the expense extractor agent",
       requestBody: {
         content: {
           "application/json": {

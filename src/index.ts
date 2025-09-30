@@ -5,7 +5,8 @@ import { logger } from "./utils/logger";
 import { rateLimitMiddleware } from "./middleware/rate-limit";
 import { errorHandler } from "./middleware/error-handler";
 import { healthRoutes } from "./routes/health";
-import { messageRoutes } from "./routes/message";
+import { webhookRoutes } from "./routes/webhook";
+import { expenseRoutes, categoryRoutes } from "./routes/expense";
 
 const app = new Elysia()
   .use(
@@ -31,7 +32,8 @@ const app = new Elysia()
         },
         tags: [
           { name: "Health", description: "Health check endpoints" },
-          { name: "Message", description: "Webhook message processing endpoints" },
+          { name: "Webhook", description: "Evolution API webhook processing endpoints" },
+          { name: "Expenses", description: "Expense management endpoints" },
         ],
       },
     })
@@ -49,7 +51,9 @@ const app = new Elysia()
   .onError(errorHandler)
 
   .use(healthRoutes)
-  .use(messageRoutes)
+  .use(webhookRoutes)
+  .use(expenseRoutes)
+  .use(categoryRoutes)
 
   .onBeforeHandle(({ request }) => {
     request.headers.set("x-start-time", Date.now().toString());

@@ -110,6 +110,3 @@ src/
 - **Health Check**: http://localhost:3000/health
 - **Documentação**: http://localhost:3000/swagger
 
----
-
-Desenvolvido com ❤️ usando Bun e Elysia

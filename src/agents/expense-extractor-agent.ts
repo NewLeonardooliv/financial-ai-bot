@@ -59,7 +59,7 @@ export class ExpenseExtractorAgent implements Agent {
         confidence: this.calculateConfidence(extractedExpenses),
       };
 
-      logger.info("\nExtração de gastos concluída!");
+      logger.info("Extração de gastos concluída!");
       logger.info(
         `Resumo: ${
           result.summary.totalExpenses

@@ -25,7 +25,7 @@ const app = new Elysia()
     swagger({
       documentation: {
         info: {
-          title: "Assistant Intelligence API",
+          title: "Financial AI Bot API",
           version: "1.0.0",
           description: "High-performance API built with Bun and Elysia",
         },

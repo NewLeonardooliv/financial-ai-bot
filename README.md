@@ -1,4 +1,4 @@
-# Assistant Intelligence
+# Financial AI Bot
 
 Uma API de alta performance construída com **Bun** e **Elysia** para processamento inteligente de mensagens via webhook, com foco em extração de gastos e categorização automática.
 

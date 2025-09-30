@@ -55,7 +55,7 @@ export const messageRoutes = new Elysia({ prefix: "/message" }).post(
         remoteJid: webhookData.data.key?.remoteJid,
       });
 
-      if (!webhookData.data.key?.fromMe) {
+      if (webhookData.data.key?.fromMe) {
         logger.info("Skipping message from bot itself");
         return {
           status: "success",

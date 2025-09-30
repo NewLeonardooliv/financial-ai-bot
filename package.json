@@ -1,0 +1,37 @@
+{
+  "name": "assistant-intelligence",
+  "version": "1.0.0",
+  "description": "High-performance API built with Bun",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "bun run --watch server.ts",
+    "start": "bun run server.ts",
+    "build": "bun build server.ts --outdir dist --target bun",
+    "test": "bun test"
+  },
+  "keywords": [
+    "api",
+    "bun",
+    "high-performance",
+    "backend"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@elysiajs/cors": "^1.0.0",
+    "@elysiajs/static": "^1.0.0",
+    "@elysiajs/swagger": "^1.0.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "openai": "^5.23.2",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/bun": "^1.2.23",
+    "@types/jsonwebtoken": "^9.0.5",
+    "elysia": "^1.0.0",
+    "typescript": "^5.3.3"
+  }
+}

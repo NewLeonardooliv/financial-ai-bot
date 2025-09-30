@@ -1,5 +1,5 @@
 {
-  "name": "assistant-intelligence",
+  "name": "financial-ai-bot",
   "version": "1.0.0",
   "description": "High-performance API built with Bun",
   "main": "src/index.ts",

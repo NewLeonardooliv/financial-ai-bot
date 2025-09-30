@@ -13,7 +13,7 @@ class SimpleLogger {
   private version: string;
 
   constructor() {
-    this.service = 'assistant-intelligence-api';
+    this.service = 'financial-ai-bot-api';
     this.version = process.env.npm_package_version || '1.0.0';
   }
 

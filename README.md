@@ -34,7 +34,7 @@ Uma API de alta performance construída com **Bun** e **Elysia** para processame
 1. **Clone o repositório**
    ```bash
    git clone <repository-url>
-   cd assistant-intelligence
+   cd financial-ai-bot
    ```
 
 2. **Instale as dependências**
@@ -72,10 +72,10 @@ Uma API de alta performance construída com **Bun** e **Elysia** para processame
 
 ```bash
 # Build da imagem
-docker build -t assistant-intelligence .
+docker build -t financial-ai-bot .
 
 # Executar container
-docker run -p 3000:3000 --env-file .env assistant-intelligence
+docker run -p 3000:3000 --env-file .env financial-ai-bot
 ```
 
 ## 📡 Endpoints

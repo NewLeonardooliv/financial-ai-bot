@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "assistant-intelligence",
+      "name": "financial-ai-bot",
       "dependencies": {
         "@elysiajs/cors": "^1.0.0",
         "@elysiajs/static": "^1.0.0",

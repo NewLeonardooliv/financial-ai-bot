@@ -7,6 +7,22 @@ import { errorHandler } from "./middleware/error-handler";
 import { healthRoutes } from "./routes/health";
 import { webhookRoutes } from "./routes/webhook";
 import { expenseRoutes, categoryRoutes } from "./routes/expense";
+import { testConnection } from "./db/config";
+
+// Testar conexão com o banco de dados na inicialização
+async function initializeDatabase() {
+  const isConnected = await testConnection();
+  if (!isConnected) {
+    logger.error("Failed to connect to database. Application may not work correctly.");
+    process.exit(1);
+  }
+}
+
+// Inicializar banco de dados
+initializeDatabase().catch((error) => {
+  logger.error("Database initialization failed", { error });
+  process.exit(1);
+});
 
 const app = new Elysia()
   .use(

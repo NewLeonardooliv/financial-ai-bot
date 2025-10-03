@@ -1,12 +1,23 @@
 import { logger } from "../utils/logger";
 import { ValidationError } from "../middleware/error-handler";
 import { Expense } from "./agent-service";
-import { normalizeExpenseCategory, isValidExpenseCategory, getValidExpenseCategories } from "../constants/expense-categories";
+import {
+  normalizeExpenseCategory,
+  isValidExpenseCategory,
+  getValidExpenseCategories,
+} from "../constants/expense-categories";
+import { db } from "../db/config";
+import {
+  expenses,
+  type Expense as DbExpense,
+  type NewExpense,
+} from "../db/schema";
+import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 
 export interface ExpenseRecord extends Expense {
-  id: string;
-  createdAt: string;
-  updatedAt: string;
+  id: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface CreateExpenseRequest {
@@ -33,33 +44,23 @@ export interface ExpenseQuery {
 }
 
 export class ExpenseService {
-  private expenses: Map<string, ExpenseRecord> = new Map();
-  private nextId = 1;
-
   constructor() {
-    logger.info("ExpenseService initialized");
+    logger.info("ExpenseService initialized with PostgreSQL");
   }
 
   async createExpense(data: CreateExpenseRequest): Promise<ExpenseRecord> {
     this.validateExpenseData(data);
 
-    const id = this.nextId.toString();
-    this.nextId++;
-
-    // Normalizar categoria para garantir consistência
     const normalizedCategory = normalizeExpenseCategory(data.category);
 
-    const expense: ExpenseRecord = {
-      id,
+    const newExpense: NewExpense = {
       description: data.description,
-      amount: data.amount,
+      amount: data.amount.toString(),
       category: normalizedCategory,
       currency: data.currency,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
 
-    this.expenses.set(id, expense);
+    const [expense] = await db.insert(expenses).values(newExpense).returning();
 
     logger.info("Expense created", {
       id: expense.id,
@@ -69,77 +70,74 @@ export class ExpenseService {
       currency: expense.currency,
     });
 
-    return expense;
+    return this.mapDbExpenseToRecord(expense);
   }
 
-  async getExpense(id: string): Promise<ExpenseRecord | null> {
-    const expense = this.expenses.get(id);
-    
+  async getExpense(id: number): Promise<ExpenseRecord | null> {
+    const [expense] = await db
+      .select()
+      .from(expenses)
+      .where(eq(expenses.id, id));
+
     if (!expense) {
       logger.warn("Expense not found", { id });
       return null;
     }
 
     logger.info("Expense retrieved", { id });
-    return expense;
+    return this.mapDbExpenseToRecord(expense);
   }
 
   async getAllExpenses(query: ExpenseQuery = {}): Promise<ExpenseRecord[]> {
-    let filteredExpenses = Array.from(this.expenses.values());
+    const conditions = [];
 
-    // Filter by category
     if (query.category) {
-      filteredExpenses = filteredExpenses.filter(
-        expense => expense.category.toLowerCase() === query.category!.toLowerCase()
-      );
+      conditions.push(eq(expenses.category, query.category));
     }
 
-    // Filter by currency
     if (query.currency) {
-      filteredExpenses = filteredExpenses.filter(
-        expense => expense.currency.toLowerCase() === query.currency!.toLowerCase()
-      );
+      conditions.push(eq(expenses.currency, query.currency));
     }
 
-    // Filter by date range
     if (query.startDate) {
-      filteredExpenses = filteredExpenses.filter(
-        expense => expense.createdAt >= query.startDate!
-      );
+      conditions.push(gte(expenses.createdAt, new Date(query.startDate)));
     }
 
     if (query.endDate) {
-      filteredExpenses = filteredExpenses.filter(
-        expense => expense.createdAt <= query.endDate!
-      );
+      conditions.push(lte(expenses.createdAt, new Date(query.endDate)));
     }
 
-    // Sort by creation date (newest first)
-    filteredExpenses.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const dbExpenses = await db
+      .select()
+      .from(expenses)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(expenses.createdAt))
+      .limit(query.limit || 100)
+      .offset(query.offset || 0);
 
-    // Apply pagination
-    const offset = query.offset || 0;
-    const limit = query.limit || 100;
-    const paginatedExpenses = filteredExpenses.slice(offset, offset + limit);
+    const expensesList = dbExpenses.map((expense) =>
+      this.mapDbExpenseToRecord(expense)
+    );
 
     logger.info("Expenses retrieved", {
-      total: filteredExpenses.length,
-      returned: paginatedExpenses.length,
+      total: expensesList.length,
       filters: query,
     });
 
-    return paginatedExpenses;
+    return expensesList;
   }
 
-  async updateExpense(id: string, data: UpdateExpenseRequest): Promise<ExpenseRecord | null> {
-    const existingExpense = this.expenses.get(id);
-    
+  async updateExpense(
+    id: number,
+    data: UpdateExpenseRequest
+  ): Promise<ExpenseRecord | null> {
+    const existingExpense = await this.getExpense(id);
+
     if (!existingExpense) {
       logger.warn("Expense not found for update", { id });
       return null;
     }
 
-    // Validate data if provided
     if (data.description !== undefined) {
       if (!data.description || data.description.trim().length === 0) {
         throw new ValidationError("Description cannot be empty");
@@ -156,11 +154,12 @@ export class ExpenseService {
       if (!data.category || data.category.trim().length === 0) {
         throw new ValidationError("Category cannot be empty");
       }
-      
-      // Validar se a categoria é válida
+
       if (!isValidExpenseCategory(data.category)) {
         throw new ValidationError(
-          `Invalid category: "${data.category}". Valid categories: ${getValidExpenseCategories().join(", ")}`
+          `Invalid category: "${
+            data.category
+          }". Valid categories: ${getValidExpenseCategories().join(", ")}`
         );
       }
     }
@@ -171,42 +170,53 @@ export class ExpenseService {
       }
     }
 
-    // Normalizar categoria se fornecida
-    const normalizedData = { ...data };
-    if (data.category !== undefined) {
-      normalizedData.category = normalizeExpenseCategory(data.category);
+    const updateData: Partial<NewExpense> = {};
+
+    if (data.description !== undefined) {
+      updateData.description = data.description;
     }
 
-    const updatedExpense: ExpenseRecord = {
-      ...existingExpense,
-      ...normalizedData,
-      updatedAt: new Date().toISOString(),
-    };
+    if (data.amount !== undefined) {
+      updateData.amount = data.amount.toString();
+    }
 
-    this.expenses.set(id, updatedExpense);
+    if (data.category !== undefined) {
+      updateData.category = normalizeExpenseCategory(data.category);
+    }
+
+    if (data.currency !== undefined) {
+      updateData.currency = data.currency;
+    }
+
+    // Atualizar no banco de dados
+    const [updatedExpense] = await db
+      .update(expenses)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(expenses.id, id))
+      .returning();
 
     logger.info("Expense updated", {
       id: updatedExpense.id,
       changes: data,
     });
 
-    return updatedExpense;
+    return this.mapDbExpenseToRecord(updatedExpense);
   }
 
-  async deleteExpense(id: string): Promise<boolean> {
-    const expense = this.expenses.get(id);
-    
-    if (!expense) {
+  async deleteExpense(id: number): Promise<boolean> {
+    const existingExpense = await this.getExpense(id);
+
+    if (!existingExpense) {
       logger.warn("Expense not found for deletion", { id });
       return false;
     }
 
-    this.expenses.delete(id);
+    await db.delete(expenses).where(eq(expenses.id, id));
 
     logger.info("Expense deleted", {
-      id: expense.id,
-      description: expense.description,
-      amount: expense.amount,
+      id: existingExpense.id,
+      description: existingExpense.description,
+      amount: existingExpense.amount,
     });
 
     return true;
@@ -219,12 +229,40 @@ export class ExpenseService {
     currencies: string[];
     averageAmount: number;
   }> {
-    const expenses = await this.getAllExpenses(query);
+    const conditions = [];
 
-    const totalExpenses = expenses.length;
-    const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const categories = [...new Set(expenses.map(expense => expense.category))];
-    const currencies = [...new Set(expenses.map(expense => expense.currency))];
+    if (query.category) {
+      conditions.push(eq(expenses.category, query.category));
+    }
+
+    if (query.currency) {
+      conditions.push(eq(expenses.currency, query.currency));
+    }
+
+    if (query.startDate) {
+      conditions.push(gte(expenses.createdAt, new Date(query.startDate)));
+    }
+
+    if (query.endDate) {
+      conditions.push(lte(expenses.createdAt, new Date(query.endDate)));
+    }
+
+    const expensesList = await db
+      .select()
+      .from(expenses)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+    const totalExpenses = expensesList.length;
+    const totalAmount = expensesList.reduce(
+      (sum, expense) => sum + parseFloat(expense.amount),
+      0
+    );
+    const categories = [
+      ...new Set(expensesList.map((expense) => expense.category)),
+    ];
+    const currencies = [
+      ...new Set(expensesList.map((expense) => expense.currency)),
+    ];
     const averageAmount = totalExpenses > 0 ? totalAmount / totalExpenses : 0;
 
     const summary = {
@@ -242,9 +280,9 @@ export class ExpenseService {
 
   async getValidCategories(): Promise<string[]> {
     const categories = getValidExpenseCategories();
-    
+
     logger.info("Valid categories requested", { count: categories.length });
-    
+
     return [...categories];
   }
 
@@ -254,23 +292,38 @@ export class ExpenseService {
     }
 
     if (!data.amount || data.amount <= 0) {
-      throw new ValidationError("Amount is required and must be greater than 0");
+      throw new ValidationError(
+        "Amount is required and must be greater than 0"
+      );
     }
 
     if (!data.category || data.category.trim().length === 0) {
       throw new ValidationError("Category is required and cannot be empty");
     }
 
-    // Validar se a categoria é válida
     if (!isValidExpenseCategory(data.category)) {
       throw new ValidationError(
-        `Invalid category: "${data.category}". Valid categories: ${getValidExpenseCategories().join(", ")}`
+        `Invalid category: "${
+          data.category
+        }". Valid categories: ${getValidExpenseCategories().join(", ")}`
       );
     }
 
     if (!data.currency || data.currency.trim().length === 0) {
       throw new ValidationError("Currency is required and cannot be empty");
     }
+  }
+
+  private mapDbExpenseToRecord(dbExpense: DbExpense): ExpenseRecord {
+    return {
+      id: dbExpense.id,
+      description: dbExpense.description,
+      amount: parseFloat(dbExpense.amount),
+      category: dbExpense.category,
+      currency: dbExpense.currency,
+      createdAt: dbExpense.createdAt,
+      updatedAt: dbExpense.updatedAt,
+    };
   }
 }
 

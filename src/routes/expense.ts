@@ -77,7 +77,7 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
                     data: {
                       type: "object",
                       properties: {
-                        id: { type: "string" },
+                        id: { type: "number" },
                         description: { type: "string" },
                         amount: { type: "number" },
                         category: { type: "string" },
@@ -165,7 +165,7 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
                       items: {
                         type: "object",
                         properties: {
-                          id: { type: "string" },
+                          id: { type: "number" },
                           description: { type: "string" },
                           amount: { type: "number" },
                           category: { type: "string" },
@@ -192,10 +192,20 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
     async ({ params, set }) => {
       try {
         const { id } = params;
+        const expenseId = parseInt(id);
 
-        logger.info("Retrieving expense by ID", { id });
+        if (isNaN(expenseId)) {
+          set.status = 400;
+          return {
+            success: false,
+            message: "Invalid expense ID",
+            timestamp: new Date().toISOString(),
+          };
+        }
 
-        const expense = await expenseService.getExpense(id);
+        logger.info("Retrieving expense by ID", { id: expenseId });
+
+        const expense = await expenseService.getExpense(expenseId);
 
         if (!expense) {
           set.status = 404;
@@ -245,7 +255,7 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
                     data: {
                       type: "object",
                       properties: {
-                        id: { type: "string" },
+                        id: { type: "number" },
                         description: { type: "string" },
                         amount: { type: "number" },
                         category: { type: "string" },
@@ -285,11 +295,21 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
     async ({ params, set, body }) => {
       try {
         const { id } = params;
+        const expenseId = parseInt(id);
         const updateData = body as UpdateExpenseRequest;
 
-        logger.info("Updating expense", { id, updateData });
+        if (isNaN(expenseId)) {
+          set.status = 400;
+          return {
+            success: false,
+            message: "Invalid expense ID",
+            timestamp: new Date().toISOString(),
+          };
+        }
 
-        const expense = await expenseService.updateExpense(id, updateData);
+        logger.info("Updating expense", { id: expenseId, updateData });
+
+        const expense = await expenseService.updateExpense(expenseId, updateData);
 
         if (!expense) {
           set.status = 404;
@@ -358,7 +378,7 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
                     data: {
                       type: "object",
                       properties: {
-                        id: { type: "string" },
+                        id: { type: "number" },
                         description: { type: "string" },
                         amount: { type: "number" },
                         category: { type: "string" },
@@ -398,10 +418,20 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
     async ({ params, set }) => {
       try {
         const { id } = params;
+        const expenseId = parseInt(id);
 
-        logger.info("Deleting expense", { id });
+        if (isNaN(expenseId)) {
+          set.status = 400;
+          return {
+            success: false,
+            message: "Invalid expense ID",
+            timestamp: new Date().toISOString(),
+          };
+        }
 
-        const deleted = await expenseService.deleteExpense(id);
+        logger.info("Deleting expense", { id: expenseId });
+
+        const deleted = await expenseService.deleteExpense(expenseId);
 
         if (!deleted) {
           set.status = 404;

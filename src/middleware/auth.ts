@@ -3,7 +3,7 @@ import { userService } from "../services/user-service";
 import { Elysia } from "elysia";
 
 export interface AuthenticatedUser {
-  id: number;
+  id: string;
   whatsappNumber: string;
   name?: string | null;
 }

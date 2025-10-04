@@ -41,7 +41,7 @@ export class UserService {
     return user;
   }
 
-  async getUserById(id: number): Promise<User | null> {
+  async getUserById(id: string): Promise<User | null> {
     const [user] = await db
       .select()
       .from(users)
@@ -71,7 +71,7 @@ export class UserService {
     return user;
   }
 
-  async updateUser(id: number, data: UpdateUserRequest): Promise<User | null> {
+  async updateUser(id: string, data: UpdateUserRequest): Promise<User | null> {
     const existingUser = await this.getUserById(id);
     
     if (!existingUser) {
@@ -99,7 +99,7 @@ export class UserService {
     return updatedUser;
   }
 
-  async deleteUser(id: number): Promise<boolean> {
+  async deleteUser(id: string): Promise<boolean> {
     const existingUser = await this.getUserById(id);
     
     if (!existingUser) {

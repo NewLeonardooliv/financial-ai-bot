@@ -88,7 +88,8 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
       detail: {
         tags: ["Expenses"],
         summary: "Get all expenses",
-        description: "Retrieves all expenses with optional filtering and pagination",
+        description:
+          "Retrieves all expenses with optional filtering and pagination",
       },
     }
   )
@@ -99,16 +100,7 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
       try {
         const user = getUserFromContext(request);
         const { id } = params;
-        const expenseId = parseInt(id);
-
-        if (isNaN(expenseId)) {
-          set.status = 400;
-          return {
-            success: false,
-            message: "Invalid expense ID",
-            timestamp: new Date().toISOString(),
-          };
-        }
+        const expenseId = id;
 
         logger.info("Retrieving expense by ID", {
           id: expenseId,
@@ -162,17 +154,8 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
       try {
         const user = getUserFromContext(request);
         const { id } = params;
-        const expenseId = parseInt(id);
+        const expenseId = id;
         const updateData = body as UpdateExpenseRequest;
-
-        if (isNaN(expenseId)) {
-          set.status = 400;
-          return {
-            success: false,
-            message: "Invalid expense ID",
-            timestamp: new Date().toISOString(),
-          };
-        }
 
         logger.info("Updating expense", {
           id: expenseId,
@@ -232,16 +215,7 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
       try {
         const user = getUserFromContext(request);
         const { id } = params;
-        const expenseId = parseInt(id);
-
-        if (isNaN(expenseId)) {
-          set.status = 400;
-          return {
-            success: false,
-            message: "Invalid expense ID",
-            timestamp: new Date().toISOString(),
-          };
-        }
+        const expenseId = id;
 
         logger.info("Deleting expense", { id: expenseId, userId: user.id });
 

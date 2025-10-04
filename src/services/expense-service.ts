@@ -16,8 +16,8 @@ import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { AuthenticatedUser } from "../middleware/auth";
 
 export interface ExpenseRecord extends Expense {
-  id: number;
-  userId: number;
+  id: string;
+  userId: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -81,7 +81,7 @@ export class ExpenseService {
   }
 
   async getExpense(
-    id: number,
+    id: string,
     user: AuthenticatedUser
   ): Promise<ExpenseRecord | null> {
     const [expense] = await db
@@ -142,7 +142,7 @@ export class ExpenseService {
   }
 
   async updateExpense(
-    id: number,
+    id: string,
     data: UpdateExpenseRequest,
     user: AuthenticatedUser
   ): Promise<ExpenseRecord | null> {
@@ -218,7 +218,7 @@ export class ExpenseService {
     return this.mapDbExpenseToRecord(updatedExpense);
   }
 
-  async deleteExpense(id: number, user: AuthenticatedUser): Promise<boolean> {
+  async deleteExpense(id: string, user: AuthenticatedUser): Promise<boolean> {
     const existingExpense = await this.getExpense(id, user);
 
     if (!existingExpense) {

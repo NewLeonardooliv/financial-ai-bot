@@ -1,8 +1,8 @@
-import { pgTable, serial, text, decimal, timestamp, varchar, uuid, integer } from 'drizzle-orm/pg-core';
+import { pgTable, text, decimal, timestamp, varchar, uuid } from 'drizzle-orm/pg-core';
 
 // Schema para a tabela de usuários
 export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
+  id: uuid('id').primaryKey().defaultRandom(),
   whatsappNumber: varchar('whatsapp_number', { length: 20 }).notNull().unique(),
   name: varchar('name', { length: 100 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -11,8 +11,8 @@ export const users = pgTable('users', {
 
 // Schema para a tabela de expenses (atualizado com user_id)
 export const expenses = pgTable('expenses', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   description: text('description').notNull(),
   amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
   category: varchar('category', { length: 100 }).notNull(),

@@ -67,7 +67,6 @@ export class EvolutionService {
       const data = (await response.json()) as EvolutionResponse;
 
       logger.info("Message sent successfully", {
-        success: data.success,
         messageId: data.data?.key?.id,
       });
 

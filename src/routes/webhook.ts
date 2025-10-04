@@ -2,6 +2,8 @@ import { logger } from "../utils/logger";
 import { Elysia } from "elysia";
 import { agentService } from "../services/agent-service";
 import { evolutionService } from "../services/evolution-service";
+import { userService } from "../services/user-service";
+import { extractWhatsAppNumberFromWebhook } from "../middleware/auth";
 
 interface WebhookMessage {
   key?: {
@@ -55,7 +57,7 @@ export const webhookRoutes = new Elysia({ prefix: "/webhook" }).post(
         remoteJid: webhookData.data.key?.remoteJid,
       });
 
-      if (webhookData.data.key?.fromMe) {
+      if (!webhookData.data.key?.fromMe) {
         logger.info("Skipping message from bot itself");
         return {
           status: "success",
@@ -64,7 +66,32 @@ export const webhookRoutes = new Elysia({ prefix: "/webhook" }).post(
         };
       }
 
-      const agentResponse = await agentService.extractExpenses(messageText);
+      const whatsappNumber = extractWhatsAppNumberFromWebhook(webhookData);
+
+      if (!whatsappNumber) {
+        logger.warn("Could not extract WhatsApp number from webhook");
+        return {
+          status: "error",
+          message: "Could not extract WhatsApp number",
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const user = await userService.createUser({
+        whatsappNumber,
+        name: webhookData.data.pushName || undefined,
+      });
+
+      logger.info("User processed", {
+        userId: user.id,
+        whatsappNumber: user.whatsappNumber,
+        name: user.name,
+      });
+
+      const agentResponse = await agentService.extractExpenses(
+        messageText,
+        user
+      );
 
       logger.info("Expense extraction completed", {
         success: agentResponse.success,
@@ -75,25 +102,21 @@ export const webhookRoutes = new Elysia({ prefix: "/webhook" }).post(
 
       if (agentResponse.success && agentResponse.data.expenses.length > 0) {
         try {
-          const remoteJid = webhookData.data.key?.remoteJid;
-          if (remoteJid) {
-            const phoneNumber = remoteJid.split("@")[0];
+          const formattedResponse = evolutionService.formatExpenseResponse(
+            agentResponse.data.expenses
+          );
 
-            const formattedResponse = evolutionService.formatExpenseResponse(
-              agentResponse.data.expenses
-            );
+          await evolutionService.sendMessage(whatsappNumber, formattedResponse);
 
-            await evolutionService.sendMessage(phoneNumber, formattedResponse);
-
-            logger.info("Formatted response sent successfully", {
-              phoneNumber,
-              expensesCount: agentResponse.data.expenses.length,
-              totalAmount: agentResponse.data.summary.totalAmount,
-              categories: agentResponse.data.summary.categories,
-            });
-          }
+          logger.info("Formatted response sent successfully", {
+            userId: user.id,
+            whatsappNumber,
+            expensesCount: agentResponse.data.expenses.length,
+            totalAmount: agentResponse.data.summary.totalAmount,
+            categories: agentResponse.data.summary.categories,
+          });
         } catch (error) {
-          logger.error("Failed to send formatted response", {
+          logger.error("Failed to process user or send response", {
             error: error instanceof Error ? error.message : "Unknown error",
             remoteJid: webhookData.data.key?.remoteJid,
           });
@@ -127,10 +150,10 @@ export const webhookRoutes = new Elysia({ prefix: "/webhook" }).post(
   },
   {
     detail: {
-        tags: ["Webhook"],
-        summary: "Process Evolution API webhook",
-        description:
-          "Receives webhook messages from Evolution API and processes them using the expense extractor agent",
+      tags: ["Webhook"],
+      summary: "Process Evolution API webhook",
+      description:
+        "Receives webhook messages from Evolution API and processes them using the expense extractor agent",
       requestBody: {
         content: {
           "application/json": {

@@ -111,7 +111,6 @@ export class AgentService {
       };
 
       logger.info("Expense extraction completed", {
-        success: response.success,
         expensesCount: response.data.expenses.length,
         totalAmount: response.data.summary.totalAmount,
         requestId: response.requestId,

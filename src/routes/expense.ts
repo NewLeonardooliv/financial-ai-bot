@@ -9,7 +9,7 @@ import {
 import { authMiddleware, getUserFromContext } from "../middleware/auth";
 
 export const expenseRoutes = new Elysia({ prefix: "/expenses" })
-  .use(authMiddleware())
+  .use(authMiddleware)
   .post(
     "/",
     async ({ set, body, request }) => {
@@ -23,7 +23,6 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
 
         set.status = 201;
         return {
-          success: true,
           message: "Expense created successfully",
           data: expense,
           timestamp: new Date().toISOString(),
@@ -36,7 +35,6 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
 
         set.status = 400;
         return {
-          success: false,
           message: "Failed to create expense",
           error: error instanceof Error ? error.message : "Unknown error",
           timestamp: new Date().toISOString(),
@@ -64,7 +62,6 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
         const expenses = await expenseService.getAllExpenses(user, queryParams);
 
         return {
-          success: true,
           message: "Expenses retrieved successfully",
           data: expenses,
           count: expenses.length,
@@ -77,7 +74,6 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
         });
 
         return {
-          success: false,
           message: "Failed to retrieve expenses",
           error: error instanceof Error ? error.message : "Unknown error",
           timestamp: new Date().toISOString(),
@@ -112,14 +108,12 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
         if (!expense) {
           set.status = 404;
           return {
-            success: false,
             message: "Expense not found",
             timestamp: new Date().toISOString(),
           };
         }
 
         return {
-          success: true,
           message: "Expense retrieved successfully",
           data: expense,
           timestamp: new Date().toISOString(),
@@ -132,7 +126,6 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
 
         set.status = 500;
         return {
-          success: false,
           message: "Failed to retrieve expense",
           error: error instanceof Error ? error.message : "Unknown error",
           timestamp: new Date().toISOString(),
@@ -172,14 +165,12 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
         if (!expense) {
           set.status = 404;
           return {
-            success: false,
             message: "Expense not found",
             timestamp: new Date().toISOString(),
           };
         }
 
         return {
-          success: true,
           message: "Expense updated successfully",
           data: expense,
           timestamp: new Date().toISOString(),
@@ -193,7 +184,6 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
 
         set.status = 400;
         return {
-          success: false,
           message: "Failed to update expense",
           error: error instanceof Error ? error.message : "Unknown error",
           timestamp: new Date().toISOString(),
@@ -224,14 +214,12 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
         if (!deleted) {
           set.status = 404;
           return {
-            success: false,
             message: "Expense not found",
             timestamp: new Date().toISOString(),
           };
         }
 
         return {
-          success: true,
           message: "Expense deleted successfully",
           timestamp: new Date().toISOString(),
         };
@@ -243,7 +231,6 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
 
         set.status = 500;
         return {
-          success: false,
           message: "Failed to delete expense",
           error: error instanceof Error ? error.message : "Unknown error",
           timestamp: new Date().toISOString(),
@@ -277,7 +264,6 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
         );
 
         return {
-          success: true,
           message: "Expense summary generated successfully",
           data: summary,
           timestamp: new Date().toISOString(),
@@ -289,7 +275,6 @@ export const expenseRoutes = new Elysia({ prefix: "/expenses" })
         });
 
         return {
-          success: false,
           message: "Failed to generate expense summary",
           error: error instanceof Error ? error.message : "Unknown error",
           timestamp: new Date().toISOString(),
@@ -314,7 +299,6 @@ export const categoryRoutes = new Elysia({ prefix: "/categories" }).get(
       const categories = await expenseService.getValidCategories();
 
       return {
-        success: true,
         message: "Valid categories retrieved successfully",
         data: categories,
         count: categories.length,

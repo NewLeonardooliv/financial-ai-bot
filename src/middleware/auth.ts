@@ -12,8 +12,8 @@ export interface AuthContext {
   user: AuthenticatedUser;
 }
 
-export function authMiddleware() {
-  return new Elysia().onBeforeHandle(async ({ request, set }: any) => {
+export const authMiddleware = new Elysia().onRequest(
+  async ({ request, set }: any) => {
     try {
       const authHeader = request.headers.get("authorization");
 
@@ -21,7 +21,6 @@ export function authMiddleware() {
         logger.warn("No authorization header provided");
         set.status = 401;
         return {
-          success: false,
           message: "Authorization header required",
           timestamp: new Date().toISOString(),
         };
@@ -35,7 +34,6 @@ export function authMiddleware() {
         });
         set.status = 401;
         return {
-          success: false,
           message: "Invalid token format. Expected: whatsapp:+5511999999999",
           timestamp: new Date().toISOString(),
         };
@@ -72,13 +70,12 @@ export function authMiddleware() {
 
       set.status = 401;
       return {
-        success: false,
         message: "Authentication failed",
         timestamp: new Date().toISOString(),
       };
     }
-  });
-}
+  }
+);
 
 export function getUserFromContext(request: any): AuthenticatedUser {
   return request.user;

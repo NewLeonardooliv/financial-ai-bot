@@ -8,6 +8,13 @@
       "when": 1759518911931,
       "tag": "0000_smooth_ulik",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1759520176042,
+      "tag": "0001_nifty_ogun",
+      "breakpoints": true
     }
   ]
 }

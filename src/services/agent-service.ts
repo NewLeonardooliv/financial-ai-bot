@@ -5,6 +5,7 @@ import { OpenAIProvider } from "../providers/openai-provider";
 import { generateSessionId } from "../utils/session";
 import { expenseService, ExpenseRecord } from "./expense-service";
 import { normalizeExpenseCategory } from "../constants/expense-categories";
+import { AuthenticatedUser } from "@/middleware/auth";
 
 export interface Expense {
   description: string;
@@ -50,7 +51,10 @@ export class AgentService {
     this.expenseExtractorAgent = new ExpenseExtractorAgent(llmProvider);
   }
 
-  async extractExpenses(text: string): Promise<AgentResponse> {
+  async extractExpenses(
+    text: string,
+    user: AuthenticatedUser
+  ): Promise<AgentResponse> {
     if (!text || text.trim().length === 0) {
       throw new ValidationError("Text input is required and cannot be empty");
     }
@@ -70,19 +74,20 @@ export class AgentService {
         throw new Error(result.error || "Failed to extract expenses");
       }
 
-      // Persist extracted expenses
       const persistedExpenses = [];
       for (const expense of result.data.expenses) {
         try {
-          // Normalizar categoria antes de persistir
           const normalizedCategory = normalizeExpenseCategory(expense.category);
 
-          const persistedExpense = await expenseService.createExpense({
-            description: expense.description,
-            amount: expense.amount,
-            category: normalizedCategory,
-            currency: expense.currency,
-          });
+          const persistedExpense = await expenseService.createExpense(
+            {
+              description: expense.description,
+              amount: expense.amount,
+              category: normalizedCategory,
+              currency: expense.currency,
+            },
+            user
+          );
           persistedExpenses.push(persistedExpense);
         } catch (error) {
           logger.warn("Failed to persist expense", {

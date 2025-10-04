@@ -12,10 +12,12 @@ import {
   type Expense as DbExpense,
   type NewExpense,
 } from "../db/schema";
-import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { AuthenticatedUser } from "../middleware/auth";
 
 export interface ExpenseRecord extends Expense {
   id: number;
+  userId: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,12 +50,16 @@ export class ExpenseService {
     logger.info("ExpenseService initialized with PostgreSQL");
   }
 
-  async createExpense(data: CreateExpenseRequest): Promise<ExpenseRecord> {
+  async createExpense(
+    data: CreateExpenseRequest,
+    user: AuthenticatedUser
+  ): Promise<ExpenseRecord> {
     this.validateExpenseData(data);
 
     const normalizedCategory = normalizeExpenseCategory(data.category);
 
     const newExpense: NewExpense = {
+      userId: user.id,
       description: data.description,
       amount: data.amount.toString(),
       category: normalizedCategory,
@@ -64,6 +70,7 @@ export class ExpenseService {
 
     logger.info("Expense created", {
       id: expense.id,
+      userId: expense.userId,
       description: expense.description,
       amount: expense.amount,
       category: expense.category,
@@ -73,23 +80,29 @@ export class ExpenseService {
     return this.mapDbExpenseToRecord(expense);
   }
 
-  async getExpense(id: number): Promise<ExpenseRecord | null> {
+  async getExpense(
+    id: number,
+    user: AuthenticatedUser
+  ): Promise<ExpenseRecord | null> {
     const [expense] = await db
       .select()
       .from(expenses)
-      .where(eq(expenses.id, id));
+      .where(and(eq(expenses.id, id), eq(expenses.userId, user.id)));
 
     if (!expense) {
-      logger.warn("Expense not found", { id });
+      logger.warn("Expense not found", { id, userId: user.id });
       return null;
     }
 
-    logger.info("Expense retrieved", { id });
+    logger.info("Expense retrieved", { id, userId: user.id });
     return this.mapDbExpenseToRecord(expense);
   }
 
-  async getAllExpenses(query: ExpenseQuery = {}): Promise<ExpenseRecord[]> {
-    const conditions = [];
+  async getAllExpenses(
+    user: AuthenticatedUser,
+    query: ExpenseQuery = {}
+  ): Promise<ExpenseRecord[]> {
+    const conditions = [eq(expenses.userId, user.id)];
 
     if (query.category) {
       conditions.push(eq(expenses.category, query.category));
@@ -110,7 +123,7 @@ export class ExpenseService {
     const dbExpenses = await db
       .select()
       .from(expenses)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .where(and(...conditions))
       .orderBy(desc(expenses.createdAt))
       .limit(query.limit || 100)
       .offset(query.offset || 0);
@@ -121,6 +134,7 @@ export class ExpenseService {
 
     logger.info("Expenses retrieved", {
       total: expensesList.length,
+      userId: user.id,
       filters: query,
     });
 
@@ -129,12 +143,13 @@ export class ExpenseService {
 
   async updateExpense(
     id: number,
-    data: UpdateExpenseRequest
+    data: UpdateExpenseRequest,
+    user: AuthenticatedUser
   ): Promise<ExpenseRecord | null> {
-    const existingExpense = await this.getExpense(id);
+    const existingExpense = await this.getExpense(id, user);
 
     if (!existingExpense) {
-      logger.warn("Expense not found for update", { id });
+      logger.warn("Expense not found for update", { id, userId: user.id });
       return null;
     }
 
@@ -188,33 +203,36 @@ export class ExpenseService {
       updateData.currency = data.currency;
     }
 
-    // Atualizar no banco de dados
     const [updatedExpense] = await db
       .update(expenses)
       .set({ ...updateData, updatedAt: new Date() })
-      .where(eq(expenses.id, id))
+      .where(and(eq(expenses.id, id), eq(expenses.userId, user.id)))
       .returning();
 
     logger.info("Expense updated", {
       id: updatedExpense.id,
+      userId: user.id,
       changes: data,
     });
 
     return this.mapDbExpenseToRecord(updatedExpense);
   }
 
-  async deleteExpense(id: number): Promise<boolean> {
-    const existingExpense = await this.getExpense(id);
+  async deleteExpense(id: number, user: AuthenticatedUser): Promise<boolean> {
+    const existingExpense = await this.getExpense(id, user);
 
     if (!existingExpense) {
-      logger.warn("Expense not found for deletion", { id });
+      logger.warn("Expense not found for deletion", { id, userId: user.id });
       return false;
     }
 
-    await db.delete(expenses).where(eq(expenses.id, id));
+    await db
+      .delete(expenses)
+      .where(and(eq(expenses.id, id), eq(expenses.userId, user.id)));
 
     logger.info("Expense deleted", {
       id: existingExpense.id,
+      userId: user.id,
       description: existingExpense.description,
       amount: existingExpense.amount,
     });
@@ -222,14 +240,17 @@ export class ExpenseService {
     return true;
   }
 
-  async getExpenseSummary(query: ExpenseQuery = {}): Promise<{
+  async getExpenseSummary(
+    user: AuthenticatedUser,
+    query: ExpenseQuery = {}
+  ): Promise<{
     totalExpenses: number;
     totalAmount: number;
     categories: string[];
     currencies: string[];
     averageAmount: number;
   }> {
-    const conditions = [];
+    const conditions = [eq(expenses.userId, user.id)];
 
     if (query.category) {
       conditions.push(eq(expenses.category, query.category));
@@ -250,7 +271,7 @@ export class ExpenseService {
     const expensesList = await db
       .select()
       .from(expenses)
-      .where(conditions.length > 0 ? and(...conditions) : undefined);
+      .where(and(...conditions));
 
     const totalExpenses = expensesList.length;
     const totalAmount = expensesList.reduce(
@@ -273,7 +294,7 @@ export class ExpenseService {
       averageAmount,
     };
 
-    logger.info("Expense summary generated", summary);
+    logger.info("Expense summary generated", { ...summary, userId: user.id });
 
     return summary;
   }
@@ -317,6 +338,7 @@ export class ExpenseService {
   private mapDbExpenseToRecord(dbExpense: DbExpense): ExpenseRecord {
     return {
       id: dbExpense.id,
+      userId: dbExpense.userId,
       description: dbExpense.description,
       amount: parseFloat(dbExpense.amount),
       category: dbExpense.category,
